@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using SeiRjMonitor.Domain.Aggregates;
 using SeiRjMonitor.Domain.Interfaces;
 using SeiRjMonitor.Infrastructure.Persistence;
 
@@ -15,10 +14,13 @@ public sealed class ProtocoloRepository : IProtocoloRepository
     public ProtocoloRepository(SeiRjMonitorDbContext context) => _context = context;
 
     public async Task<bool> ExisteChaveAsync(
+        long processoId,
         string chave,
         CancellationToken cancellationToken = default)
     {
         return await _context.Protocolos
-            .AnyAsync(p => p.Chave == chave, cancellationToken);
+            .AnyAsync(
+                p => p.ProcessoId == processoId && p.Chave == chave,
+                cancellationToken);
     }
 }

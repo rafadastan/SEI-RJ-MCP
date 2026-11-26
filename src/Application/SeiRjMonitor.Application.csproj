@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Domain\SeiRjMonitor.Domain.csproj" />
-    <ProjectReference Include="..\InfraStructure\SeiRjMonitor.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

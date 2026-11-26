@@ -1,6 +1,9 @@
 using System.ComponentModel;
+using System.Data.Common;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using SeiRjMonitor.Application;
 using SeiRjMonitor.Application.Persistence;
@@ -17,8 +20,13 @@ public sealed class SeiTools
     };
 
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<SeiTools> _logger;
 
-    public SeiTools(IServiceScopeFactory scopeFactory) => _scopeFactory = scopeFactory;
+    public SeiTools(IServiceScopeFactory scopeFactory, ILogger<SeiTools> logger)
+    {
+        _scopeFactory = scopeFactory;
+        _logger = logger;
+    }
 
     /// <summary>
     /// Executa uma operação de aplicação em um escopo próprio, garantindo um
@@ -39,20 +47,21 @@ public sealed class SeiTools
         "Retorna metadados do processo, protocolos públicos listados, histórico de tramitação visível " +
         "e a lista de movimentações novas detectadas. " +
         "Não acessa documentos restritos, não resolve CAPTCHA e não contorna autenticação.")]
-    public async Task<string> ConsultarProcesso(
+    public Task<string> ConsultarProcesso(
         [Description("URL completa da página pública de consulta do processo no domínio sei.rj.gov.br.")] string url,
-        CancellationToken cancellationToken = default)
-    {
-        var consulta = await ComMonitoramentoAsync(
-            (servico, token) => servico.ConsultarAsync(url, token), cancellationToken);
+        CancellationToken cancellationToken = default) =>
+        ComTratamentoAsync(nameof(ConsultarProcesso), async () =>
+        {
+            var consulta = await ComMonitoramentoAsync(
+                (servico, token) => servico.ConsultarAsync(url, token), cancellationToken);
 
-        if (!consulta.Resultado.Sucesso)
-            return SerializarFalha(consulta.Resultado.Falha!);
+            if (!consulta.Resultado.Sucesso)
+                return SerializarFalha(consulta.Resultado.Falha!);
 
-        return JsonSerializer.Serialize(
-            MontarSaida(consulta.Resultado.Processo!, consulta.Persistencia),
-            JsonOptions);
-    }
+            return JsonSerializer.Serialize(
+                MontarSaida(consulta.Resultado.Processo!, consulta.Persistencia),
+                JsonOptions);
+        }, cancellationToken);
 
     [McpServerTool, Description(
         "Valida se um link pertence à consulta pública do SEI-RJ e identifica o formato da URL. " +
@@ -78,54 +87,86 @@ public sealed class SeiTools
         "Recupera o histórico local de um processo já consultado: consultas registradas, " +
         "movimentações detectadas e carimbos de primeira detecção. " +
         "Não faz nova consulta ao SEI-RJ.")]
-    public async Task<string> HistoricoProcesso(
+    public Task<string> HistoricoProcesso(
         [Description("Número do processo, como SEI-260005/005504/2024.")] string numero,
-        CancellationToken cancellationToken = default)
-    {
-        var historico = await ComMonitoramentoAsync(
-            (servico, token) => servico.ObterHistoricoAsync(numero, token), cancellationToken);
-
-        if (historico is null)
+        CancellationToken cancellationToken = default) =>
+        ComTratamentoAsync(nameof(HistoricoProcesso), async () =>
         {
+            var historico = await ComMonitoramentoAsync(
+                (servico, token) => servico.ObterHistoricoAsync(numero, token), cancellationToken);
+
+            if (historico is null)
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    encontrado = false,
+                    numero,
+                    observacao = "Nenhuma consulta registrada para este processo. Use consultar_processo com o link público para criar a linha de base."
+                }, JsonOptions);
+            }
+
             return JsonSerializer.Serialize(new
             {
-                encontrado = false,
-                numero,
-                observacao = "Nenhuma consulta registrada para este processo. Use consultar_processo com o link público para criar a linha de base."
+                encontrado = true,
+                historico.Numero,
+                historico.Tipo,
+                historico.DataGeracao,
+                historico.Interessados,
+                historico.AcessoRestrito,
+                historico.PrimeiraConsultaUtc,
+                historico.UltimaConsultaUtc,
+                historico.TotalConsultas,
+                quantidadeMovimentacoes = historico.Movimentacoes.Count,
+                consultas = historico.Consultas,
+                movimentacoes = historico.Movimentacoes
             }, JsonOptions);
-        }
-
-        return JsonSerializer.Serialize(new
-        {
-            encontrado = true,
-            historico.Numero,
-            historico.Tipo,
-            historico.DataGeracao,
-            historico.Interessados,
-            historico.AcessoRestrito,
-            historico.PrimeiraConsultaUtc,
-            historico.UltimaConsultaUtc,
-            historico.TotalConsultas,
-            quantidadeMovimentacoes = historico.Movimentacoes.Count,
-            consultas = historico.Consultas,
-            movimentacoes = historico.Movimentacoes
-        }, JsonOptions);
-    }
+        }, cancellationToken);
 
     [McpServerTool, Description(
         "Lista os processos já consultados e registrados no banco local, " +
         "do mais recente para o mais antigo, com contagem de consultas e movimentações.")]
-    public async Task<string> ListarProcessosMonitorados(
-        CancellationToken cancellationToken = default)
-    {
-        var processos = await ComMonitoramentoAsync(
-            (servico, token) => servico.ListarProcessosAsync(token), cancellationToken);
-
-        return JsonSerializer.Serialize(new
+    public Task<string> ListarProcessosMonitorados(
+        CancellationToken cancellationToken = default) =>
+        ComTratamentoAsync(nameof(ListarProcessosMonitorados), async () =>
         {
-            quantidade = processos.Count,
-            processos
-        }, JsonOptions);
+            var processos = await ComMonitoramentoAsync(
+                (servico, token) => servico.ListarProcessosAsync(token), cancellationToken);
+
+            return JsonSerializer.Serialize(new
+            {
+                quantidade = processos.Count,
+                processos
+            }, JsonOptions);
+        }, cancellationToken);
+
+    /// <summary>
+    /// Converte falhas de banco/rede em uma resposta JSON estável, em vez de deixar
+    /// a exceção escapar da ferramenta MCP. Erros de programação continuam propagando.
+    /// </summary>
+    private async Task<string> ComTratamentoAsync(
+        string ferramenta,
+        Func<Task<string>> operacao,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await operacao();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception excecao) when (excecao is DbException or DbUpdateException or TimeoutException)
+        {
+            _logger.LogError(excecao, "Falha de infraestrutura na ferramenta MCP {Ferramenta}.", ferramenta);
+
+            return JsonSerializer.Serialize(new
+            {
+                erro = "Não foi possível acessar o banco de dados local. " +
+                       "Verifique a disponibilidade do PostgreSQL e a configuração da conexão.",
+                tipoFalha = "FalhaInfraestrutura"
+            }, JsonOptions);
+        }
     }
 
     private static object MontarSaida(

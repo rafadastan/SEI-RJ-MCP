@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using SeiRjMonitor.Domain.Aggregates;
 using SeiRjMonitor.Domain.Interfaces;
 using SeiRjMonitor.Infrastructure.Persistence;
 
@@ -15,10 +14,13 @@ public sealed class MovimentacaoRepository : IMovimentacaoRepository
     public MovimentacaoRepository(SeiRjMonitorDbContext context) => _context = context;
 
     public async Task<bool> ExisteChaveAsync(
+        long processoId,
         string chave,
         CancellationToken cancellationToken = default)
     {
         return await _context.Movimentacoes
-            .AnyAsync(m => m.Chave == chave, cancellationToken);
+            .AnyAsync(
+                m => m.ProcessoId == processoId && m.Chave == chave,
+                cancellationToken);
     }
 }

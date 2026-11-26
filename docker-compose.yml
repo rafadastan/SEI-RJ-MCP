@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sei_rj_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sei_monitor}
+      POSTGRES_USER: ${POSTGRES_USER:-sei_monitor_app}
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}"
+    # Exposto apenas no loopback para administracao local; nunca publique a porta do banco.
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  sei-rj-monitor:
+    image: sei-rj-monitor:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sei_rj_monitor_app
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      # Senha sem ';' para nao quebrar a connection string. Para senhas com
+      # caracteres especiais, use o formato chave-valor do Npgsql ou um secret manager.
+      ConnectionStrings__SeiMonitor: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-sei_monitor};Username=${POSTGRES_USER:-sei_monitor_app};Password=${POSTGRES_PASSWORD};SSL Mode=Disable;Timeout=10;Command Timeout=30"
+      Seguranca__ApiKey: "${SEGURANCA_API_KEY:?Defina SEGURANCA_API_KEY no arquivo .env}"
+      SeiMonitor__IntervalMinutes: "${SEI_MONITOR_INTERVAL_MINUTES:-30}"
+      AllowedHosts: "${ALLOWED_HOSTS:-*}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
