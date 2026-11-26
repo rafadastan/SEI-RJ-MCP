@@ -10,7 +10,7 @@ public class SeiPageParserTests
     [Fact]
     public void DeveExtrairMetadadosDoProcesso()
     {
-        var html = File.ReadAllText("Fixtures\\sei_sample.html");
+        var html = LerFixture();
         var resultado = new SeiPageParser().Parse(
             html,
             "https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?abc123",
@@ -31,7 +31,7 @@ public class SeiPageParserTests
     [Fact]
     public void DeveExtrairProtocolos()
     {
-        var html = File.ReadAllText("Fixtures\\sei_sample.html");
+        var html = LerFixture();
         var resultado = new SeiPageParser().Parse(
             html,
             "https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?abc123",
@@ -58,7 +58,7 @@ public class SeiPageParserTests
     [Fact]
     public void DeveExtrairMovimentacoes()
     {
-        var html = File.ReadAllText("Fixtures\\sei_sample.html");
+        var html = LerFixture();
         var resultado = new SeiPageParser().Parse(
             html,
             "https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?abc123",
@@ -106,5 +106,20 @@ public class SeiPageParserTests
         Assert.False(resultado.Sucesso);
         Assert.NotNull(resultado.Falha);
         Assert.Equal(FalhaConsultaTipo.LayoutDesconhecido, resultado.Falha!.Tipo);
+    }
+
+    /// <summary>
+    /// Localiza o fixture a partir do diretório do assembly, sem depender do
+    /// diretório de trabalho nem do separador de caminho do sistema.
+    /// </summary>
+    private static string LerFixture()
+    {
+        var nome = Path.Combine("Fixtures", "sei_sample.html");
+
+        var caminho = Path.Combine(AppContext.BaseDirectory, nome);
+        if (!File.Exists(caminho))
+            caminho = Path.Combine(Directory.GetCurrentDirectory(), nome);
+
+        return File.ReadAllText(caminho);
     }
 }
