@@ -39,6 +39,27 @@ Documentação detalhada: [arquitetura](docs/architecture.md) ·
 [segurança](docs/security.md) · [deploy](docs/deployment.md) ·
 [operação](docs/operations.md).
 
+## Documentação
+
+A documentação completa do projeto está organizada em 12 documentos na pasta `docs/`:
+
+| Documento | Descrição |
+|---|---|
+| [Visão geral](docs/01-visao-geral.md) | Objetivo, funcionalidades e escopo do projeto. |
+| [Arquitetura](docs/02-arquitetura.md) | Arquitetura, camadas e responsabilidades. |
+| [Fluxo de execução](docs/03-fluxo-de-execucao.md) | Fluxo de consulta e detecção de alterações. |
+| [Banco de dados](docs/04-banco-de-dados.md) | Persistência, tabelas e relacionamentos. |
+| [MCP e integração](docs/05-mcp-e-integracao.md) | Ferramentas MCP e integração com clientes. |
+| [Monitoramento automático](docs/06-monitoramento-automatico.md) | Monitoramento periódico dos processos. |
+| [Segurança](docs/07-seguranca.md) | Autenticação, validações e proteção. |
+| [Testes](docs/08-testes.md) | Estratégia e execução. |
+| [Configuração e deploy](docs/09-configuracao-e-deploy.md) | Instalação, configuração e publicação. |
+| [Decisões arquiteturais](docs/10-decisoes-arquiteturais.md) | Decisões, alternativas e justificativas. |
+| [Roadmap](docs/11-roadmap.md) | Evolução e funcionalidades planejadas. |
+| [Glossário](docs/12-glossario.md) | Termos técnicos utilizados no projeto. |
+
+Documentos preexistentes preservados: [architecture.md](docs/architecture.md), [security.md](docs/security.md), [deployment.md](docs/deployment.md), [operations.md](docs/operations.md), [audit-report.md](docs/audit-report.md).
+
 ## Requisitos
 
 - .NET 8 SDK (ou superior)

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "console-nvidia/nvidia/nemotron-3.5-lightning-30b-a3b",
+  "provider": {
+    "console-nvidia": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "NVIDIA",
+      "options": {
+        "baseURL": "https://integrate.api.nvidia.com/v1",
+        "apiKey": "{env:NVIDIA_API_KEY}"
+      },
+      "models": {
+        "google/google-paligemma": {
+          "name": "paligemma"
+        },
+        "minimaxai/minimax-m3.1-flash": {
+          "name": "MiniMax-M3.1-Flash"
+        },
+        "nvidia/active-speaker-detection": {
+          "name": "Active Speaker Detection"
+        },
+        "nvidia/bevformer": {
+          "name": "bevformer"
+        },
+        "nvidia/llama-3.1-nemotron-safety-guard-8b-v3": {
+          "name": "llama-3.1-nemotron-safety-guard-8b-v3"
+        },
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning": {
+          "name": "Nemotron 3 Nano Omni"
+        },
+        "nvidia/nemotron-3-ultra-550b-a55b": {
+          "name": "Nemotron 3 Ultra 550B A55B"
+        },
+        "nvidia/nemotron-3.5-content-safety": {
+          "name": "Nemotron 3.5 Content Safety"
+        },
+        "nvidia/nemotron-3.5-lightning-30b-a3b": {
+          "name": "Nemotron 3.5 Lightning 30B A3B"
+        },
+        "nvidia/nemotron-3.5-super-vl-120b-a12b": {
+          "name": "Nemotron 3.5 Super VL 120B A12B"
+        },
+        "nvidia/sparsedrive": {
+          "name": "sparsedrive"
+        },
+        "nvidia/streampetr": {
+          "name": "streampetr"
+        },
+        "nvidia/studiovoice": {
+          "name": "studiovoice"
+        },
+        "nvidia/synthetic-video-detector": {
+          "name": "synthetic-video-detector"
+        },
+        "poolside/laguna-xs-2.1": {
+          "name": "Laguna XS 2.1"
+        },
+        "stepfun-ai/step-5-preview": {
+          "name": "Step 5 Preview"
+        },
+        "z-ai/glm-5.3-flash": {
+          "name": "GLM-5.3-Flash"
+        }
+      }
+    }
+  }
+}
