@@ -116,6 +116,20 @@ Documentação detalhada: [arquitetura](docs/architecture.md) ·
    - `GET /health/ready` — PostgreSQL acessível
    - `POST /mcp` — endpoint MCP
 
+### Build bloqueado por processo em execução
+
+Se `dotnet build` falhar com `O processo não pode acessar o arquivo ... porque ele está
+sendo usado por outro processo`, há uma instância anterior rodando (`dotnet run` ou
+`SeiRjMonitor.Presentation.exe`) segurando as DLLs em `bin/Debug`.
+
+```powershell
+powershell -NoProfile -File scripts/stop-dev.ps1
+dotnet build SEI-RJ-Monitor.sln
+```
+
+O script encerra apenas processos deste projeto e não toca em outros `dotnet` da máquina.
+Use `-Force` se a primeira tentativa não encerrar.
+
 ## Docker Compose
 
 ```bash

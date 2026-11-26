@@ -155,6 +155,20 @@ Causas prováveis e mensagens:
 - Container unhealthy → verifique se a porta 8080 está correta e se `/health/live`
   responde internamente.
 
+### Build falha com "arquivo bloqueado por outro processo"
+
+Uma instância anterior (`dotnet run` ou `SeiRjMonitor.Presentation.exe`) mantém as DLLs
+de `bin/Debug` abertas. Encerre apenas os processos deste projeto:
+
+```powershell
+powershell -NoProfile -File scripts/stop-dev.ps1
+dotnet build SEI-RJ-Monitor.sln
+```
+
+Se a mensagem indicar outro processo (por exemplo Visual Studio ou `dotnet watch`),
+pare a sessão de depuração correspondente antes de compilar. Não é necessário limpar
+`bin`/`obj`.
+
 ### Ciclos ignorados por sobreposição
 
 Aumente o intervalo ou o timeout do ciclo; investigue processos com latência alta. O
