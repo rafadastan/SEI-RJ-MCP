@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, development]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build, test and dependency check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore SEI-RJ-Monitor.sln
+
+      - name: Build (Release)
+        run: dotnet build SEI-RJ-Monitor.sln -c Release --no-restore
+
+      - name: Test
+        run: >
+          dotnet test src/Test/XUnit/SeiRjMonitor.Tests.csproj
+          -c Release --no-build --logger "console;verbosity=normal"
+
+      - name: Check vulnerable packages
+        run: |
+          output=$(dotnet list SEI-RJ-Monitor.sln package --vulnerable --include-transitive)
+          echo "$output"
+          if echo "$output" | grep -qE 'GHSA-|CVE-'; then
+            echo "Pacotes vulneraveis encontrados."
+            exit 1
+          fi
+
+  docker:
+    name: Build container image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t sei-rj-monitor:ci .

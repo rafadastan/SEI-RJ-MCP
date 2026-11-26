@@ -1,8 +1,7 @@
-using System.IO;
+﻿using System.IO;
 using SeiRjMonitor.Domain;
 using SeiRjMonitor.Infrastructure.Services;
 using Xunit;
-
 
 namespace SeiRjMonitor.Tests.ParserTests;
 
@@ -11,8 +10,8 @@ public class SeiPageParserTests
     [Fact]
     public void DeveExtrairMetadadosDoProcesso()
     {
-        var html = File.ReadAllText("Fixtures\\sei_sample.html");
-        var resultado = SeiPageParser.Parse(
+        var html = LerFixture();
+        var resultado = new SeiPageParser().Parse(
             html,
             "https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?abc123",
             new DateTimeOffset(2024, 1, 20, 12, 0, 0, TimeSpan.Zero));
@@ -32,8 +31,8 @@ public class SeiPageParserTests
     [Fact]
     public void DeveExtrairProtocolos()
     {
-        var html = File.ReadAllText("Fixtures\\sei_sample.html");
-        var resultado = SeiPageParser.Parse(
+        var html = LerFixture();
+        var resultado = new SeiPageParser().Parse(
             html,
             "https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?abc123",
             new DateTimeOffset(2024, 1, 20, 12, 0, 0, TimeSpan.Zero));
@@ -59,8 +58,8 @@ public class SeiPageParserTests
     [Fact]
     public void DeveExtrairMovimentacoes()
     {
-        var html = File.ReadAllText("Fixtures\\sei_sample.html");
-        var resultado = SeiPageParser.Parse(
+        var html = LerFixture();
+        var resultado = new SeiPageParser().Parse(
             html,
             "https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?abc123",
             new DateTimeOffset(2024, 1, 20, 12, 0, 0, TimeSpan.Zero));
@@ -85,7 +84,7 @@ public class SeiPageParserTests
     public void DeveRetornarFalhaQuandoProcessoNaoEncontrado()
     {
         var html = "<html><body>Processo não encontrado.</body></html>";
-        var resultado = SeiPageParser.Parse(
+        var resultado = new SeiPageParser().Parse(
             html,
             "https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?abc123",
             new DateTimeOffset(2024, 1, 20, 12, 0, 0, TimeSpan.Zero));
@@ -99,7 +98,7 @@ public class SeiPageParserTests
     public void DeveRetornarFalhaQuandoLayoutDesconhecido()
     {
         var html = "<html><body>Página sem dados reconhecíveis.</body></html>";
-        var resultado = SeiPageParser.Parse(
+        var resultado = new SeiPageParser().Parse(
             html,
             "https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?abc123",
             new DateTimeOffset(2024, 1, 20, 12, 0, 0, TimeSpan.Zero));
@@ -107,5 +106,20 @@ public class SeiPageParserTests
         Assert.False(resultado.Sucesso);
         Assert.NotNull(resultado.Falha);
         Assert.Equal(FalhaConsultaTipo.LayoutDesconhecido, resultado.Falha!.Tipo);
+    }
+
+    /// <summary>
+    /// Localiza o fixture a partir do diretório do assembly, sem depender do
+    /// diretório de trabalho nem do separador de caminho do sistema.
+    /// </summary>
+    private static string LerFixture()
+    {
+        var nome = Path.Combine("Fixtures", "sei_sample.html");
+
+        var caminho = Path.Combine(AppContext.BaseDirectory, nome);
+        if (!File.Exists(caminho))
+            caminho = Path.Combine(Directory.GetCurrentDirectory(), nome);
+
+        return File.ReadAllText(caminho);
     }
 }

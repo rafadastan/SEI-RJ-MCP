@@ -1,5 +1,5 @@
+using SeiRjMonitor.Application.Abstractions;
 using SeiRjMonitor.Domain;
-using SeiRjMonitor.Infrastructure.Services;
 
 namespace SeiRjMonitor.Application;
 
@@ -8,9 +8,14 @@ namespace SeiRjMonitor.Application;
 /// </summary>
 public sealed class SeiConsultaService
 {
-    private readonly SeiPageLoader _loader;
+    private readonly ISeiPageLoader _loader;
+    private readonly ISeiPageParser _parser;
 
-    public SeiConsultaService(SeiPageLoader loader) => _loader = loader;
+    public SeiConsultaService(ISeiPageLoader loader, ISeiPageParser parser)
+    {
+        _loader = loader;
+        _parser = parser;
+    }
 
     public async Task<ConsultaProcessoResultado> ConsultarAsync(
         string url,
@@ -29,6 +34,6 @@ public sealed class SeiConsultaService
                 pagina.Falha.StatusHttp);
         }
 
-        return SeiPageParser.Parse(pagina.Html!, link.Uri.ToString(), DateTimeOffset.UtcNow);
+        return _parser.Parse(pagina.Html!, link.Uri.ToString(), DateTimeOffset.UtcNow);
     }
 }

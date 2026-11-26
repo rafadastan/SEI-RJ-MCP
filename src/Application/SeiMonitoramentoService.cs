@@ -92,7 +92,7 @@ public sealed class SeiMonitoramentoService
             var chave = CalcularChaveProtocolo(protocolo);
 
             if (!processo.PossuiProtocoloComChave(chave) &&
-                !await _protocolos.ExisteChaveAsync(chave, cancellationToken))
+                !await _protocolos.ExisteChaveAsync(processo.Id, chave, cancellationToken))
             {
                 var protocoloItem = new ProtocoloItem(
                     processo.Id,
@@ -119,7 +119,7 @@ public sealed class SeiMonitoramentoService
             var chave = CalcularChaveMovimentacao(movimentacao);
 
             if (!processo.PossuiMovimentacaoComChave(chave) &&
-                !await _movimentacoes.ExisteChaveAsync(chave, cancellationToken))
+                !await _movimentacoes.ExisteChaveAsync(processo.Id, chave, cancellationToken))
             {
                 var movimentacaoItem = new MovimentacaoItem(
                     processo.Id,
