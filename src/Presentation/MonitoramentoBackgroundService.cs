@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using SeiRjMonitor.Application;
 using SeiRjMonitor.Application.Persistence;
 
@@ -15,33 +16,37 @@ public sealed record ResumoCiclo(
 /// <summary>
 /// Consulta periodicamente todos os processos já armazenados, reutilizando o
 /// link da última consulta de cada um. Cada ciclo é sequencial e nunca se
-/// sobrepõe ao anterior; falhas em um processo não interrompem os demais.
-/// Desativado quando <c>SeiMonitor:IntervalMinutes</c> é zero ou negativo.
+/// sobrepõe ao anterior; falhas isoladas ou em um ciclo inteiro não interrompem
+/// o monitoramento. Desativado quando <c>SeiMonitor:IntervalMinutes</c> é zero
+/// ou negativo.
 /// </summary>
 public sealed class MonitoramentoBackgroundService : BackgroundService
 {
-    private static readonly TimeSpan PausaEntreProcessos = TimeSpan.FromSeconds(2);
-
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<MonitoramentoBackgroundService> _logger;
+    private readonly MonitoramentoOptions _options;
+    private readonly SemaphoreSlim _cicloLock = new(1, 1);
 
     private ResumoCiclo? _ultimoCiclo;
 
     public MonitoramentoBackgroundService(
         IServiceScopeFactory scopeFactory,
-        IConfiguration configuration,
+        IOptions<MonitoramentoOptions> options,
         ILogger<MonitoramentoBackgroundService> logger)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _options = options.Value;
 
-        var minutos = configuration.GetValue("SeiMonitor:IntervalMinutes", 30);
-        Intervalo = minutos > 0 ? TimeSpan.FromMinutes(minutos) : TimeSpan.Zero;
+        foreach (var aviso in _options.Normalizar())
+            _logger.LogWarning("Configuração de monitoramento: {Aviso}", aviso);
     }
 
-    public TimeSpan Intervalo { get; }
+    public TimeSpan Intervalo => _options.Intervalo;
 
-    public bool Habilitado => Intervalo > TimeSpan.Zero;
+    public bool Habilitado => _options.Habilitado;
+
+    public TimeSpan TempoLimiteCiclo => _options.TempoLimiteCiclo;
 
     public ResumoCiclo? UltimoCiclo => Volatile.Read(ref _ultimoCiclo);
 
@@ -55,8 +60,26 @@ public sealed class MonitoramentoBackgroundService : BackgroundService
         }
 
         _logger.LogInformation(
-            "Monitoramento agendado ativo: um ciclo a cada {IntervaloMinutos} minuto(s).",
-            Intervalo.TotalMinutes);
+            "Monitoramento agendado ativo: ciclo a cada {IntervaloMinutos} minuto(s), " +
+            "limite de {TempoLimiteMinutos:F1} minuto(s) por ciclo.",
+            Intervalo.TotalMinutes,
+            TempoLimiteCiclo.TotalMinutes);
+
+        try
+        {
+            if (_options.EsperaInicial > TimeSpan.Zero)
+            {
+                _logger.LogInformation(
+                    "Aguardando {EsperaInicial:F0}s antes do primeiro ciclo.",
+                    _options.EsperaInicial.TotalSeconds);
+                await Task.Delay(_options.EsperaInicial, stoppingToken);
+            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("Monitoramento agendado encerrado antes do primeiro ciclo.");
+            return;
+        }
 
         using var timer = new PeriodicTimer(Intervalo);
 
@@ -64,7 +87,7 @@ public sealed class MonitoramentoBackgroundService : BackgroundService
         {
             do
             {
-                await ExecutarCicloAsync(stoppingToken);
+                await ExecutarCicloComProtecaoAsync(stoppingToken);
             }
             while (await timer.WaitForNextTickAsync(stoppingToken));
         }
@@ -74,7 +97,49 @@ public sealed class MonitoramentoBackgroundService : BackgroundService
         }
     }
 
-    private async Task ExecutarCicloAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// Executa um ciclo com timeout próprio e captura de exceções. Um ciclo com
+    /// problema nunca derruba o host nem impede os ciclos seguintes.
+    /// </summary>
+    internal async Task ExecutarCicloComProtecaoAsync(CancellationToken stoppingToken)
+    {
+        if (!await _cicloLock.WaitAsync(0, stoppingToken))
+        {
+            _logger.LogWarning("Ciclo anterior ainda em execução; novo ciclo ignorado.");
+            return;
+        }
+
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            cts.CancelAfter(TempoLimiteCiclo);
+
+            try
+            {
+                await ExecutarCicloAsync(cts.Token);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning(
+                    "Ciclo de monitoramento cancelado após exceder o limite de {TempoLimite:F0}s.",
+                    TempoLimiteCiclo.TotalSeconds);
+            }
+            catch (Exception excecao)
+            {
+                _logger.LogError(excecao, "Falha inesperada no ciclo de monitoramento.");
+            }
+        }
+        finally
+        {
+            _cicloLock.Release();
+        }
+    }
+
+    internal async Task ExecutarCicloAsync(CancellationToken cancellationToken)
     {
         var iniciadoEm = DateTimeOffset.UtcNow;
 
@@ -144,7 +209,7 @@ public sealed class MonitoramentoBackgroundService : BackgroundService
             }
 
             if (indice < processos.Count - 1)
-                await Task.Delay(PausaEntreProcessos, cancellationToken);
+                await Task.Delay(_options.PausaEntreProcessos, cancellationToken);
         }
 
         var resumo = new ResumoCiclo(

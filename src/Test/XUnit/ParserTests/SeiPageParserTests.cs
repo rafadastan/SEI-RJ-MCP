@@ -1,8 +1,7 @@
-using System.IO;
+﻿using System.IO;
 using SeiRjMonitor.Domain;
 using SeiRjMonitor.Infrastructure.Services;
 using Xunit;
-
 
 namespace SeiRjMonitor.Tests.ParserTests;
 
@@ -12,7 +11,7 @@ public class SeiPageParserTests
     public void DeveExtrairMetadadosDoProcesso()
     {
         var html = File.ReadAllText("Fixtures\\sei_sample.html");
-        var resultado = SeiPageParser.Parse(
+        var resultado = new SeiPageParser().Parse(
             html,
             "https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?abc123",
             new DateTimeOffset(2024, 1, 20, 12, 0, 0, TimeSpan.Zero));
@@ -33,7 +32,7 @@ public class SeiPageParserTests
     public void DeveExtrairProtocolos()
     {
         var html = File.ReadAllText("Fixtures\\sei_sample.html");
-        var resultado = SeiPageParser.Parse(
+        var resultado = new SeiPageParser().Parse(
             html,
             "https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?abc123",
             new DateTimeOffset(2024, 1, 20, 12, 0, 0, TimeSpan.Zero));
@@ -60,7 +59,7 @@ public class SeiPageParserTests
     public void DeveExtrairMovimentacoes()
     {
         var html = File.ReadAllText("Fixtures\\sei_sample.html");
-        var resultado = SeiPageParser.Parse(
+        var resultado = new SeiPageParser().Parse(
             html,
             "https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?abc123",
             new DateTimeOffset(2024, 1, 20, 12, 0, 0, TimeSpan.Zero));
@@ -85,7 +84,7 @@ public class SeiPageParserTests
     public void DeveRetornarFalhaQuandoProcessoNaoEncontrado()
     {
         var html = "<html><body>Processo não encontrado.</body></html>";
-        var resultado = SeiPageParser.Parse(
+        var resultado = new SeiPageParser().Parse(
             html,
             "https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?abc123",
             new DateTimeOffset(2024, 1, 20, 12, 0, 0, TimeSpan.Zero));
@@ -99,7 +98,7 @@ public class SeiPageParserTests
     public void DeveRetornarFalhaQuandoLayoutDesconhecido()
     {
         var html = "<html><body>Página sem dados reconhecíveis.</body></html>";
-        var resultado = SeiPageParser.Parse(
+        var resultado = new SeiPageParser().Parse(
             html,
             "https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?abc123",
             new DateTimeOffset(2024, 1, 20, 12, 0, 0, TimeSpan.Zero));

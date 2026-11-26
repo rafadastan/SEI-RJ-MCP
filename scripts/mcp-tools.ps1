@@ -1,5 +1,6 @@
 param(
     [string]$BaseUrl = 'http://localhost:8080',
+    [string]$ApiKey = $env:MCP_API_KEY,
     [string]$Url = 'https://sei.rj.gov.br/sei/modulos/pesquisa/md_pesq_processo_exibir.php?IC2o8Z7ACQH4LdQ4jJLJzjPBiLtP6l2FsQacllhUf-duzEubalut9yvd8-CzYYNLu7pd-wiM0k633-D6khhQNQrJ_mwMVuQDeMfHwt7nV51digBGG7p4DAZ3REb8yFhI',
     [string]$Numero = 'SEI-260005/005504/2024',
     [ValidateSet('initialize', 'list', 'validate', 'consult', 'historico', 'listar')]
@@ -8,10 +9,18 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch { }
 $mcpUrl = "$BaseUrl/mcp"
 $headers = @{
     'Accept' = 'application/json, text/event-stream'
     'Content-Type' = 'application/json'
+}
+
+if ($ApiKey) {
+    $headers['X-Api-Key'] = $ApiKey
+}
+else {
+    Write-Warning 'Nenhuma chave de API informada (-ApiKey ou MCP_API_KEY). Funciona apenas em ambiente de desenvolvimento sem autenticacao.'
 }
 
 function Invoke-Mcp {
@@ -20,8 +29,17 @@ function Invoke-Mcp {
     $h = @{} + $headers
     if ($SessionId) { $h['Mcp-Session-Id'] = $SessionId }
 
-    $response = Invoke-WebRequest -Uri $mcpUrl -Method Post -Headers $h `
-        -Body ($Payload | ConvertTo-Json -Depth 20 -Compress) -UseBasicParsing
+    try {
+        $response = Invoke-WebRequest -Uri $mcpUrl -Method Post -Headers $h `
+            -Body ($Payload | ConvertTo-Json -Depth 20 -Compress) -UseBasicParsing
+    }
+    catch {
+        $status = $_.Exception.Response.StatusCode.value__
+        if ($status -eq 401) {
+            throw 'HTTP 401: informe a chave de API com -ApiKey ou defina MCP_API_KEY.'
+        }
+        throw
+    }
 
     $raw = $response.Content
     $session = $response.Headers['Mcp-Session-Id']

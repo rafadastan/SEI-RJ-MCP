@@ -1,6 +1,7 @@
 using AngleSharp;
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
+using SeiRjMonitor.Application.Abstractions;
 using SeiRjMonitor.Domain;
 
 namespace SeiRjMonitor.Infrastructure.Services;
@@ -8,9 +9,9 @@ namespace SeiRjMonitor.Infrastructure.Services;
 /// <summary>
 /// Extrai os dados públicos do HTML da consulta processual do SEI-RJ.
 /// </summary>
-public static class SeiPageParser
+public sealed class SeiPageParser : ISeiPageParser
 {
-    public static ConsultaProcessoResultado Parse(
+    public ConsultaProcessoResultado Parse(
         string html,
         string fonte,
         DateTimeOffset consultadoEmUtc)
