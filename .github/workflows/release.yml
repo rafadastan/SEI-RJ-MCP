@@ -1,0 +1,167 @@
+
+name: Build, Test, and Release
+
+"on":
+  push:
+    branches:
+      - main
+      - development
+
+permissions:
+  contents: write
+  packages: read
+
+env:
+  DOTNET_VERSION: '8.0'
+  PROJECT_PATH: src/Presentation/SeiRjMonitor.Presentation.csproj
+  SOLUTION_PATH: SEI-RJ-Monitor.sln
+  TEST_PROJECT: src/Test/XUnit/SeiRjMonitor.Tests.csproj
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: Build solution
+        run: |
+          dotnet build ${{ env.SOLUTION_PATH }} \
+            --configuration Release \
+            --no-restore
+
+      - name: Run tests
+        run: |
+          dotnet test ${{ env.TEST_PROJECT }} \
+            --configuration Release \
+            --no-build \
+            --logger "console;verbosity=normal"
+
+      - name: Publish application
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} \
+            --configuration Release \
+            --no-build \
+            --output ./publish
+
+      - name: Upload publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish
+          path: ./publish/
+          retention-days: 30
+
+  release:
+    name: Create GitHub Release
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    if: ${{ github.ref_type == 'branch' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download publish artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: publish
+          path: ./publish
+
+      - name: Package release
+        id: package
+        shell: bash
+        run: |
+          branch="$GITHUB_REF_NAME"
+          short_sha=$(echo "$GITHUB_SHA" | cut -c1-7)
+          archive="SEI-RJ-Monitor-${branch}-${short_sha}.zip"
+
+          cd publish
+          zip -r "../${archive}" .
+          cd ..
+
+          echo "archive=${archive}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          branch="$GITHUB_REF_NAME"
+          short_sha=$(echo "$GITHUB_SHA" | cut -c1-7)
+
+          if [ "$branch" = "main" ]; then
+            release_title="SEI-RJ Monitor - ${branch} ${short_sha}"
+
+            gh release create "${branch}-${short_sha}" \
+              "./${{ steps.package.outputs.archive }}" \
+              --title "$release_title" \
+              --notes "Stable release from ${branch}. Commit: ${GITHUB_SHA}"
+          else
+            release_title="SEI-RJ Monitor - ${branch} ${short_sha}"
+
+            gh release create "${branch}-${short_sha}" \
+              "./${{ steps.package.outputs.archive }}" \
+              --title "$release_title" \
+              --prerelease \
+              --notes "Pre-release from ${branch}. Commit: ${GITHUB_SHA}"
+          fi
+
+  deploy-development:
+    name: Deploy to Development
+    needs: build-and-test
+    runs-on: ubuntu-latest
+
+    if: ${{ github.ref_name == 'development' }}
+
+    environment: development
+
+    steps:
+      - name: Download publish artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: publish
+          path: ./deploy
+
+      - name: Deploy to development
+        run: |
+          echo "Development package downloaded."
+          echo "Configure deployment provider."
+
+  deploy-production:
+    name: Deploy to Production
+    needs:
+      - build-and-test
+      - release
+
+    runs-on: ubuntu-latest
+
+    if: ${{ github.ref_name == 'main' }}
+
+    environment: production
+
+    steps:
+      - name: Download publish artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: publish
+          path: ./deploy
+
+      - name: Deploy to production
+        run: |
+          echo "Production package downloaded."
+          echo "Configure production deployment provider."
+
+      - name: Promote release
+        if: success()
+        run: echo "Release promoted successfully."
