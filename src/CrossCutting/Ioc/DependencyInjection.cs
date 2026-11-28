@@ -27,6 +27,11 @@ public static class DependencyInjection
     {
         var connectionString = configuration.GetConnectionString("SeiMonitor");
 
+        // Neon (e outros provedores gerenciados) entrega a conexão como URL
+        // postgresql://; converte para o formato do Npgsql.
+        if (string.IsNullOrWhiteSpace(connectionString))
+            connectionString = NeonDatabaseUrl.ParaConnectionString(configuration["DATABASE_URL"]);
+
         if (string.IsNullOrWhiteSpace(connectionString))
             connectionString = MontarConnectionStringPorVariaveis(configuration);
 
@@ -35,7 +40,8 @@ public static class DependencyInjection
             throw new InvalidOperationException(
                 "Connection string 'ConnectionStrings:SeiMonitor' não foi configurada. " +
                 "Defina a variável de ambiente ConnectionStrings__SeiMonitor " +
-                "(ex: Host=...;Port=5432;Database=sei_monitor;Username=...;Password=...;SSL Mode=Require), " +
+                "(ex: Host=...;Port=5432;Database=sei_monitor;Username=...;Password=...;SSL Mode=Require) " +
+                "ou DATABASE_URL com a URL do Neon (postgresql://...), " +
                 "informe a senha em SEI_DB_PASSWORD/PGPASSWORD ou aponte PGPASSFILE para o pgpass.conf.");
         }
 
