@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: sei-rj-monitor
+    runtime: docker
+    plan: free
+    healthCheckPath: /health/live
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      # URL pooled do Neon (postgresql://...), banco sei_monitor / role sei_monitor_owner.
+      # Preencha no painel do Render; não versione este valor.
+      - key: DATABASE_URL
+        sync: false
+      # Obrigatória em Production; o Render gera um valor aleatório.
+      - key: Seguranca__ApiKey
+        generateValue: true
+      - key: AllowedHosts
+        value: "*"

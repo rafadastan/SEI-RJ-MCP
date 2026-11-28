@@ -15,7 +15,8 @@ recurso pago é criado automaticamente.
 
 | Variável | Exemplo | Obrigatória |
 | --- | --- | --- |
-| `ConnectionStrings__SeiMonitor` | `Host=...;Port=5432;Database=sei_monitor;Username=...;Password=...;SSL Mode=Require` | Sim (ou senha isolada) |
+| `ConnectionStrings__SeiMonitor` | `Host=...;Port=5432;Database=sei_monitor;Username=...;Password=...;SSL Mode=Require` | Sim (ou `DATABASE_URL`) |
+| `DATABASE_URL` | `postgresql://usuario:senha@host/sei_monitor?sslmode=require` | Alternativa à connection string (Neon) |
 | `SEI_DB_PASSWORD` / `PGPASSWORD` | senha do banco | Alternativa à connection string completa |
 | `PGPASSFILE` | caminho do `pgpass.conf` | Alternativa para execução local; evite em containers |
 | `Seguranca__ApiKey` | chave aleatória de 48 bytes | Sim em Production |
@@ -67,20 +68,23 @@ interna do Docker.
      http://127.0.0.1:8080/mcp
    ```
 
-## Opção B — Render
+## Opção B - Render
 
-1. Crie um **PostgreSQL** gerenciado na mesma região.
+1. Use o **Neon** como PostgreSQL. O banco `sei_monitor`, com owner `sei_monitor_owner`,
+   já está provisionado e com as migrations aplicadas.
 2. Crie um **Web Service** do tipo Docker apontando para o repositório.
 3. Configure:
    - **Health Check Path**: `/health/live`
    - **Environment**: `Production`
-   - `ConnectionStrings__SeiMonitor` com `SSL Mode=Require` e os dados do banco
-   - `Seguranca__ApiKey` como secret
-   - `AllowedHosts` com o domínio `.onrender.com` atribuído
-4. Aplique as migrations pelo procedimento manual (a imagem de runtime não inclui o
-   SDK nem `dotnet ef`).
-5. Após o deploy, valide `/health/ready` e o handshake MCP.
-6. Recomendações: instância única (o worker é sequencial), auto-deploy desabilitado em
+   - `DATABASE_URL` com a URL **pooled** do Neon:
+     `neon connection-string production --database-name sei_monitor --role-name sei_monitor_owner --pooled`
+   - `Seguranca__ApiKey` como secret (mínimo de 32 caracteres; o Render pode gerar)
+   - `AllowedHosts` com o domínio `.onrender.com` atribuído (ou `*`)
+4. O container respeita a variável `PORT` injetada pelo Render; localmente usa `8080`.
+5. As migrations não rodam no start (a imagem de runtime não inclui o SDK nem
+   `dotnet ef`). Aplique antes com `npm run db:migrate`.
+6. Após o deploy, valide `/health/ready` e o handshake MCP.
+7. Recomendações: instância única (o worker é sequencial), auto-deploy desabilitado em
    produção, backup diário do PostgreSQL e alerta para `/health/ready`.
 
 ## Opção C — Railway

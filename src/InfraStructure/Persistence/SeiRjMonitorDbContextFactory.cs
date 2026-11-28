@@ -19,6 +19,15 @@ public sealed class SeiRjMonitorDbContextFactory
         var connectionString =
             Environment.GetEnvironmentVariable("ConnectionStrings__SeiMonitor");
 
+        // Migrations usam a conexão direta (sem pooler) quando disponível.
+        if (string.IsNullOrWhiteSpace(connectionString))
+            connectionString = NeonDatabaseUrl.ParaConnectionString(
+                Environment.GetEnvironmentVariable("DATABASE_URL_UNPOOLED"));
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+            connectionString = NeonDatabaseUrl.ParaConnectionString(
+                Environment.GetEnvironmentVariable("DATABASE_URL"));
+
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             connectionString = ConnectionStringPadrao;

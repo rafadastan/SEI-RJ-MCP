@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "build": "dotnet build SEI-RJ-Monitor.sln -c Release",
+    "start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-neon.ps1",
+    "db:migrate": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/migrate-neon.ps1"
+  },
+  "dependencies": {
+    "@neon/config": "^1.14.8",
+    "@neon/env": "^2.1.11"
+  }
+}

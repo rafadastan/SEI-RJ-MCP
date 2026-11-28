@@ -1,0 +1,10 @@
+
+{
+  "mcpServers": {
+    "sei-rj": {
+      "type": "http",
+      "url": "http://localhost:56432/mcp",
+      "tools": ["*"]
+    }
+  }
+}
